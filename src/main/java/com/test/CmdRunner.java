@@ -1,13 +1,18 @@
 package com.test;
 
+import com.couchbase.client.java.Cluster;
 import com.couchbase.client.java.json.JsonObject;
+import com.couchbase.client.java.query.QueryOptions;
+import com.couchbase.client.java.query.QueryScanConsistency;
 import com.couchbase.transactions.TransactionGetResult;
 import com.couchbase.transactions.Transactions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.data.couchbase.CouchbaseClientFactory;
+import org.springframework.data.couchbase.core.CouchbaseTemplate;
 import org.springframework.stereotype.Component;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,16 +27,25 @@ public class CmdRunner implements CommandLineRunner {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private Cluster cluster;
+
+    @Autowired
+    private CouchbaseTemplate couchbaseTemplate;
+
 
 
 
     @Override
     public void run(String... strings) throws Exception {
 
-        User u1 = createUser("user::0001", "perry", "perry.mason@acme.com", "password");
+
+        User u1 = createUser("user::0001", "perry", "perry.mason@acme.com", "password",
+                Arrays.asList(new Submission("id1", "userId1", "talkId1", "status1", 1l)));
         userRepository.save(u1);
 
-        User u2 = createUser("user::0002", "john", "john.mason@acme.com", "password");
+        User u2 = createUser("user::0002", "john", "john.mason@acme.com", "password",
+                Arrays.asList(new Submission("id2", "userId2", "talkId2", "status2", 1l)));
         userRepository.save(u2);
 //
 //
@@ -39,15 +53,32 @@ public class CmdRunner implements CommandLineRunner {
 //        userRepository.save(u3);
 
         Optional<User> user = userRepository.findById("user::0001");
-        System.out.println("User found = "+user.get().getUsername());
-
-//        List<User> result = userRepository.findByEmailLike("%@acme.com");
+        System.out.println("User found = "+user);
 //
-//        System.out.println( "Total of @acme.com users = "+result.size()  );
+////        List<User> result = userRepository.findByEmailLike("%@acme.com");
+////
+////        System.out.println( "Total of @acme.com users = "+result.size()  );
+//
+//        Optional<User> emailUser = userRepository.findByEmailLike("focafoca");
+//
+//        System.out.println("---->"+emailUser.isPresent());
+//
+//        transferCredit("user::0001", "user::0002", 10);
 
 
-        transferCredit("user::0001", "user::0002", 10);
+//        System.out.println("----------------->"+listEventTags());
 
+
+
+    }
+
+
+
+    public List<User> listEventTags() {
+
+        String queryString =  "Select meta(s).id as id, s.* from "+couchbaseTemplate.getBucketName()+" s where s._class='com.test.User'" ;
+        return cluster.query(queryString, QueryOptions.queryOptions().adhoc(true)
+                .scanConsistency(QueryScanConsistency.REQUEST_PLUS) ).rowsAs(User.class);
     }
 
     @Autowired
@@ -73,13 +104,14 @@ public class CmdRunner implements CommandLineRunner {
     }
 
     public static User createUser(String id, String username, String email,
-                                  String password) {
+                                  String password, List<Submission> submissions) {
         User user = new User();
         user.setId(id);
         user.setUsername(username);
         user.setEmail(email);
         user.setPassword(password);
         user.setCredits(50);
+        user.setSubmissions(submissions);
         return user;
     }
 

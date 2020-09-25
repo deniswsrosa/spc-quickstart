@@ -12,5 +12,5 @@ import java.util.Optional;
 public interface UserRepository extends CrudRepository<User, String> {
 
     @ScanConsistency(query = QueryScanConsistency.REQUEST_PLUS)
-    User findByEmailLike(String emailPart);
+    Optional<User> findByEmailLike(String emailPart);
 }
